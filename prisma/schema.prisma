@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  image         String?
+  emailVerified DateTime?
+  familyId      String?
+  role          Role      @default(PARENT)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  family   Family?   @relation(fields: [familyId], references: [id])
+  accounts Account[]
+  sessions Session[]
+
+  @@index([familyId])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Family {
+  id        String   @id @default(cuid())
+  name      String
+  pin       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members         User[]
+  kids            Kid[]
+  videos          Video[]
+  categories      Category[]
+  recommendations Recommendation[]
+}
+
+model Kid {
+  id        String   @id @default(cuid())
+  name      String
+  avatarUrl String?
+  age       Int?
+  familyId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  family           Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  videoAssignments KidVideo[]
+
+  @@index([familyId])
+}
+
+model Video {
+  id           String   @id @default(cuid())
+  youtubeId    String
+  title        String
+  description  String?  @db.Text
+  thumbnailUrl String?
+  channelTitle String?
+  duration     String?
+  familyId     String
+  addedById    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  family         Family          @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  categories     VideoCategory[]
+  kidAssignments KidVideo[]
+
+  @@unique([youtubeId, familyId])
+  @@index([familyId])
+}
+
+model Category {
+  id       String  @id @default(cuid())
+  name     String
+  slug     String
+  icon     String?
+  familyId String?
+
+  family Family?         @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  videos VideoCategory[]
+
+  @@unique([slug, familyId])
+  @@index([familyId])
+}
+
+model VideoCategory {
+  videoId    String
+  categoryId String
+
+  video    Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([videoId, categoryId])
+}
+
+model KidVideo {
+  kidId   String
+  videoId String
+
+  kid   Kid   @relation(fields: [kidId], references: [id], onDelete: Cascade)
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@id([kidId, videoId])
+}
+
+model Recommendation {
+  id           String               @id @default(cuid())
+  familyId     String
+  youtubeId    String
+  title        String
+  description  String?              @db.Text
+  thumbnailUrl String?
+  channelTitle String?
+  reason       String?              @db.Text
+  status       RecommendationStatus @default(PENDING)
+  createdAt    DateTime             @default(now())
+  reviewedAt   DateTime?
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, status])
+  @@index([familyId, createdAt])
+}
+
+enum Role {
+  PARENT
+  ADMIN
+}
+
+enum RecommendationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
