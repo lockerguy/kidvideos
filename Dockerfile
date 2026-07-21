@@ -23,4 +23,4 @@ COPY --from=builder /app/next.config.ts ./next.config.ts
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
-CMD ["sh", "-c", "npx prisma db push --skip-generate && npm run start"]
+CMD ["sh", "-c", "npx prisma db push --skip-generate || echo 'prisma db push failed, starting anyway'; npm run start"]
